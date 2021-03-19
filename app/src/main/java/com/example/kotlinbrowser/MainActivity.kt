@@ -3,20 +3,33 @@ package com.example.kotlinbrowser
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.res.Resources
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.MenuItem
 import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var mAdminComponentName: ComponentName
     private lateinit var mDevicePolicyManager: DevicePolicyManager
-    companion object {
-        const val LOCK_ACTIVITY_KEY = "browser.kiosk.MainActivity"
+//    companion object {
+//        const val LOCK_ACTIVITY_KEY = "browser.kiosk.MainActivity"
+//    }
+
+    override fun onBackPressed() {
+        try {
+            Toast.makeText(this, "TEST", Toast.LENGTH_LONG)
+        } catch (e: Error)
+        {
+            super.onBackPressed()
+        }
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -28,29 +41,48 @@ class MainActivity : AppCompatActivity() {
 
         val www: WebView = findViewById(R.id.web)
         www.webViewClient = WebViewClient()
-        www.loadUrl(R.string.url.toString())
+
+        val url:String = applicationContext.resources.getString(R.string.url)
+        www.loadUrl(url)
         www.settings.javaScriptEnabled = true
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             www.settings.safeBrowsingEnabled = true
         }
 
         val isAdmin = isAdmin()
+        setImmersiveMode(true)
 
-        var isLocked: Boolean = false
+        var isLocked: Boolean = true
 
         val btnLock: Button = findViewById(R.id.out_button)
-        btnLock.text = "LOCK"
-        btnLock.setOnClickListener {
+//        btnLock.text = "LOCK"
+        setKioskPolicies(true, isAdmin)
+
+        btnLock.setOnLongClickListener(){
             if(!isLocked){
                 isLocked = true
                 setKioskPolicies(true, isAdmin)
-                btnLock.text = "UNLOCK"
+//                btnLock.text = "UNLOCK"
             } else {
                 isLocked = false
                 setKioskPolicies(false, isAdmin)
-                btnLock.text = "LOCK"
+                setImmersiveMode(true)
+//                btnLock.text = "LOCK"
             }
+            true
         }
+
+//        btnLock.setOnClickListener {
+//            if(!isLocked){
+//                isLocked = true
+//                setKioskPolicies(true, isAdmin)
+//                btnLock.text = "UNLOCK"
+//            } else {
+//                isLocked = false
+//                setKioskPolicies(false, isAdmin)
+//                btnLock.text = "LOCK"
+//            }
+//        }
     }
 
     private fun isAdmin() = mDevicePolicyManager.isDeviceOwnerApp(packageName)
