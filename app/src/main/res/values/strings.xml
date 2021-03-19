@@ -1,6 +1,4 @@
 <resources>
-    <string name="app_name">KotlinBrowser</string>
-    <string name="out_button">Sign Out</string>
-    <string name="sign_out">Sign Out</string>
-    <string name="url">http://identwerk.de</string>
+    <string name="app_name">Kiosk Browser</string>
+    <string name="url">https://identwerk.de</string>
 </resources>
