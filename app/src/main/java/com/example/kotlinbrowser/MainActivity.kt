@@ -3,30 +3,43 @@ package com.example.kotlinbrowser
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
-import android.content.res.Resources
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.Icon
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.view.MenuItem
+import android.os.Environment
 import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContentProviderCompat.requireContext
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import java.io.File
+import kotlin.system.exitProcess
+
+
+//Todo
+//    Scaling the Web
+//    read external Folder
+//    back button function
+//    ADB CL
+//    to list devices connected adb devices
+//    to select device adb -s name_of_the_device shell
+//    set device owner in ADB
+//    adb shell dpm set-device-owner com.example.kotlinbrowser/.AdminReceiver
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var mAdminComponentName: ComponentName
     private lateinit var mDevicePolicyManager: DevicePolicyManager
-//    companion object {
-//        const val LOCK_ACTIVITY_KEY = "browser.kiosk.MainActivity"
-//    }
+
+    lateinit var  www: WebView
 
     override fun onBackPressed() {
-        try {
-            Toast.makeText(this, "TEST", Toast.LENGTH_LONG)
-        } catch (e: Error)
-        {
-            super.onBackPressed()
+        if(www.canGoBack()){
+            www.goBack()
         }
     }
 
@@ -37,56 +50,67 @@ class MainActivity : AppCompatActivity() {
         mAdminComponentName = AdminReceiver.getComponentName(this)
         mDevicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
 
-        mDevicePolicyManager.removeActiveAdmin(mAdminComponentName)
-
-        val www: WebView = findViewById(R.id.web)
+        www = findViewById(R.id.web)
         www.webViewClient = WebViewClient()
+        var externalUrl:String = ""
 
-        val url:String = applicationContext.resources.getString(R.string.url)
-        www.loadUrl(url)
-        www.settings.javaScriptEnabled = true
+        try {
+            val externalForlder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            val fl:File = File(externalForlder, "url.xml")
+            externalUrl = fl.readText().trim()
+        } catch (er: Exception) {
+            println(er.message.toString())
+            onAlertDialog(this, "URL can't be loaded. \nError: ${er.message}", "Try again!")
+        }
+
+//        val url:String = applicationContext.resources.getString(R.string.url)
+        www.loadUrl(externalUrl)
+        www.settings.javaScriptEnabled =  true
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             www.settings.safeBrowsingEnabled = true
         }
 
         val isAdmin = isAdmin()
-        setImmersiveMode(true)
-
+        setKioskPolicies(true, isAdmin)
         var isLocked: Boolean = true
 
-        val btnLock: Button = findViewById(R.id.out_button)
-//        btnLock.text = "LOCK"
-        setKioskPolicies(true, isAdmin)
-
-        btnLock.setOnLongClickListener(){
+        val lock:FloatingActionButton = findViewById(R.id.fab)
+        lock.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#e63946"))
+        lock.setOnLongClickListener(){
             if(!isLocked){
+                lock.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#e63946"))
                 isLocked = true
                 setKioskPolicies(true, isAdmin)
-//                btnLock.text = "UNLOCK"
+                Toast.makeText(this, "LOCKED", Toast.LENGTH_SHORT)
             } else {
+                lock.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#2a9d8f"))
                 isLocked = false
-                setKioskPolicies(false, isAdmin)
-                setImmersiveMode(true)
-//                btnLock.text = "LOCK"
+                stopLockTask()
+                Toast.makeText(this, "UNLOCKED", Toast.LENGTH_SHORT)
             }
             true
         }
-
-//        btnLock.setOnClickListener {
-//            if(!isLocked){
-//                isLocked = true
-//                setKioskPolicies(true, isAdmin)
-//                btnLock.text = "UNLOCK"
-//            } else {
-//                isLocked = false
-//                setKioskPolicies(false, isAdmin)
-//                btnLock.text = "LOCK"
-//            }
+//Remove the device admin for this app
+//        lock.setOnClickListener(){
+//            mDevicePolicyManager.clearDeviceOwnerApp(packageName)
+//            true
 //        }
     }
 
-    private fun isAdmin() = mDevicePolicyManager.isDeviceOwnerApp(packageName)
+    fun onAlertDialog(view: MainActivity, message:String, toastMsg:String){
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Warning!")
+        builder.setMessage(message)
+        builder.setPositiveButton("OK"){
+            _, _ ->
 
+            true
+//            _, _ -> Toast.makeText(this, toastMsg,Toast.LENGTH_SHORT).show()
+        }
+        builder.show()
+    }
+
+    private fun isAdmin() = mDevicePolicyManager.isDeviceOwnerApp(packageName)
     private fun setKioskPolicies(enable: Boolean, isAdmin: Boolean) {
         setLockTask(enable, isAdmin)
         setImmersiveMode(enable)
@@ -99,25 +123,32 @@ class MainActivity : AppCompatActivity() {
         }
         if (start) {
             startLockTask()
-        } else {
-            stopLockTask()
         }
+//        else if(isLocked) {
+//            stopLockTask()
+//        }
     }
+
+
 
     private fun setImmersiveMode(enable: Boolean) {
         if (enable) {
-            val flags = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-            window.decorView.systemUiVisibility = flags
-        } else {
-            val flags = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
-            window.decorView.systemUiVisibility = flags
+            val flags = (
+//                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            View.STATUS_BAR_VISIBLE
+//                    and View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+//                    and View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+//                    View.SYSTEM_UI_FLAG_FULLSCREEN
+//                    and View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    )
+                    window.decorView.systemUiVisibility = flags
         }
+//        else {
+//            val flags = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+//                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+//                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+//                    window.decorView.systemUiVisibility = flags
+//        }
     }
+
 }
