@@ -18,8 +18,20 @@ class AdminReceiver : DeviceAdminReceiver() {
         private val TAG = AdminReceiver::class.java.simpleName
     }
 
-    @RequiresApi(Build.VERSION_CODES.P)
+//    @RequiresApi(Build.VERSION_CODES.P)
     override fun onLockTaskModeEntering(context: Context, intent: Intent, pkg: String) {
+    val dpm = getManager(context)
+    val admin = getWho(context)
+    //min targeted SDK has to be 28 to be able to apply LOCK_TASK_FEATURE_SYSTEM_INFO
+    try {
+        dpm.setLockTaskFeatures(
+            admin,
+        DevicePolicyManager.LOCK_TASK_FEATURE_NONE
+//              DevicePolicyManager.LOCK_TASK_FEATURE_OVERVIEW
+        )
+    }catch (error: Exception){
+        print(error.message.toString())
+    }
         super.onLockTaskModeEntering(context, intent, pkg)
     }
 

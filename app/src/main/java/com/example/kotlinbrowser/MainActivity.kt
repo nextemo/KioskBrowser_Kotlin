@@ -14,6 +14,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.arch.core.util.Function
 import androidx.core.content.ContentProviderCompat.requireContext
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.io.File
@@ -36,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mDevicePolicyManager: DevicePolicyManager
 
     lateinit var  www: WebView
+    var isLocked: Boolean = true
 
     override fun onBackPressed() {
         if(www.canGoBack()){
@@ -60,19 +62,22 @@ class MainActivity : AppCompatActivity() {
             externalUrl = fl.readText().trim()
         } catch (er: Exception) {
             println(er.message.toString())
-            onAlertDialog(this, "URL can't be loaded. \nError: ${er.message}", "Try again!")
+            onAlertDialog("URL can't be loaded. \nError: ${er.message}")
         }
 
 //        val url:String = applicationContext.resources.getString(R.string.url)
         www.loadUrl(externalUrl)
         www.settings.javaScriptEnabled =  true
+        www.settings.builtInZoomControls = true
+
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             www.settings.safeBrowsingEnabled = true
         }
 
         val isAdmin = isAdmin()
         setKioskPolicies(true, isAdmin)
-        var isLocked: Boolean = true
+
 
         val lock:FloatingActionButton = findViewById(R.id.fab)
         lock.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#e63946"))
@@ -90,22 +95,20 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
-//Remove the device admin for this app
-//        lock.setOnClickListener(){
-//            mDevicePolicyManager.clearDeviceOwnerApp(packageName)
-//            true
-//        }
+
+//        Remove the admin status for this app
+//                lock.setOnClickListener(){
+//                    mDevicePolicyManager.clearDeviceOwnerApp(packageName)
+//                }
     }
 
-    fun onAlertDialog(view: MainActivity, message:String, toastMsg:String){
+    private fun onAlertDialog(message:String){
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Warning!")
         builder.setMessage(message)
         builder.setPositiveButton("OK"){
-            _, _ ->
-
-            true
-//            _, _ -> Toast.makeText(this, toastMsg,Toast.LENGTH_SHORT).show()
+            _, _ -> stopLockTask()
+            isLocked = false
         }
         builder.show()
     }
@@ -130,15 +133,14 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
     private fun setImmersiveMode(enable: Boolean) {
         if (enable) {
             val flags = (
 //                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            View.STATUS_BAR_VISIBLE
+//                    View.STATUS_BAR_VISIBLE
 //                    and View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
 //                    and View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-//                    View.SYSTEM_UI_FLAG_FULLSCREEN
+                    View.SYSTEM_UI_FLAG_FULLSCREEN
 //                    and View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     )
                     window.decorView.systemUiVisibility = flags
